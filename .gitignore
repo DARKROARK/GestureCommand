@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.zip
+*.tsbuildinfo
+.DS_Store
+.env*
+!.env.example
+test-results/
+playwright-report/
+.sites-runtime/
+.qa/
+*.log
+tests/user-fixture.png
+netlify.toml

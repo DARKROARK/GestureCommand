@@ -1,0 +1,10 @@
+export type GestureId = 'open' | 'fist' | 'thumbs-up' | 'peace' | 'ok' | 'rock' | 'point' | 'palm-close'
+export type Point = { x: number; y: number; z?: number; score?: number; name?: string }
+export type Gesture = { id: GestureId; name: string; emoji: string; description: string; color: string; short: string }
+export type Detection = { id: string; name: string; confidence: number; hand: string; points: Point[] }
+export type GestureEvent = { id: string; gesture: string; name: string; confidence: number; timestamp: number; hand: string; source: 'camera' | 'demo' }
+export type Frame = { time: number; detections: Detection[] }
+export type Sequence = { id: string; name: string; createdAt: number; duration: number; source: 'camera' | 'demo'; frames: Frame[] }
+export type Profile = { id: string; name: string; descriptor: number[]; createdAt: number }
+export type Settings = { mirror: boolean; skeleton: boolean; sound: boolean; voice: boolean; threshold: number; theme: 'dark' | 'light'; hands: 1 | 2; duration: 5 | 10; heatmap: boolean; mappings: Record<string, 'none' | 'screenshot' | 'record'> }
+export const DEFAULT_SETTINGS: Settings = { mirror: true, skeleton: true, sound: false, voice: false, threshold: 70, theme: 'dark', hands: 1, duration: 5, heatmap: false, mappings: {} }
