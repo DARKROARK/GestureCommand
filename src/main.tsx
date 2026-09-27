@@ -1,15 +1,13 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App'
+import App from './GestureCommandApp'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import './styles.css'
+import './command.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode><ErrorBoundary><App /></ErrorBoundary></React.StrictMode>,
 )
 
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => { /* Offline support is optional. */ })
-  })
+if ('serviceWorker' in navigator) {
+  void navigator.serviceWorker.getRegistrations().then(registrations => Promise.all(registrations.map(registration => registration.unregister())))
 }

@@ -48,7 +48,7 @@ export function useCamera(profiles: Profile[]) {
       try {
         // The MediaPipe WASM lite graph is faster on devices where TFJS WebGL falls back
         // to software rendering. Its assets are served from our own origin.
-        pendingDetector=await handPose.createDetector(handPose.SupportedModels.MediaPipeHands,{runtime:'mediapipe',modelType:'lite',maxHands,solutionPath:'/mediapipe'})
+        pendingDetector=await handPose.createDetector(handPose.SupportedModels.MediaPipeHands,{runtime:'mediapipe',modelType:'lite',maxHands,solutionPath:new URL('mediapipe/',document.baseURI).href})
       } catch (mediaPipeError) {
         if(run!==generation.current)return
         console.warn('MediaPipe initialization failed; using TensorFlow.js',mediaPipeError)
@@ -57,7 +57,7 @@ export function useCamera(profiles: Profile[]) {
         await import('@tensorflow/tfjs-backend-webgl')
         if(!await tf.setBackend('webgl'))throw new Error('Hand tracking could not start. Enable browser hardware acceleration or try another browser.')
         await tf.ready()
-        pendingDetector=await handPose.createDetector(handPose.SupportedModels.MediaPipeHands,{runtime:'tfjs',modelType:'lite',maxHands,detectorModelUrl:'/models/detector/model.json',landmarkModelUrl:'/models/landmark/model.json'})
+        pendingDetector=await handPose.createDetector(handPose.SupportedModels.MediaPipeHands,{runtime:'tfjs',modelType:'lite',maxHands,detectorModelUrl:new URL('models/detector/model.json',document.baseURI).href,landmarkModelUrl:new URL('models/landmark/model.json',document.baseURI).href})
       }
       if(run!==generation.current){pendingDetector.dispose();return}
       const detector=pendingDetector;detectorRef.current=detector

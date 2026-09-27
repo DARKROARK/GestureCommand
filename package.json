@@ -1,5 +1,5 @@
 {
-  "name": "gestureflow",
+  "name": "gesturecommand",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -7,6 +7,9 @@
     "node": ">=18.0.0"
   },
   "scripts": {
+    "desktop": "electron .",
+    "desktop:dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && electron .\"",
+    "desktop:pack": "npm run build && electron-builder --dir",
     "dev": "vite --host 127.0.0.1",
     "prebuild": "npm run mediapipe:sync",
     "build": "tsc -b && vite build",
@@ -30,6 +33,10 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
+    "electron": "^37.0.0",
+    "electron-builder": "^26.0.0",
+    "wait-on": "^8.0.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.7.0",
@@ -39,5 +46,16 @@
     "tsx": "^4.23.13",
     "typescript": "~5.7.2",
     "vite": "^6.4.1"
+  },
+  "main": "electron/main.cjs",
+  "build": {
+    "appId": "com.gesturecommand.desktop",
+    "productName": "GestureCommand",
+    "asarUnpack": ["scripts/system-control.py"],
+    "files": ["dist/**/*", "electron/**/*", "scripts/system-control.py", "public/icon-192.png", "package.json"],
+    "directories": {"output": "release"},
+    "win": {"target": "nsis"},
+    "mac": {"target": "dmg"},
+    "linux": {"target": "AppImage"}
   }
 }
