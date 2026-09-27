@@ -4,6 +4,7 @@ import { classifyRobust, describePose } from '../lib/classifier'
 import type { Detection, Point, Profile } from '../lib/types'
 
 export type CameraStatus = 'idle' | 'permission' | 'loading' | 'live' | 'error'
+export type CameraDiagnostics = { secureContext: boolean; mediaDevices: boolean; cameraCount: number; lastError: string }
 export function cameraError(error: unknown): string {
   const name=error instanceof Error?error.name:''
   if(name==='NotAllowedError'||name==='SecurityError')return 'Camera access was blocked. Allow camera access in your browser’s site settings, then try again.'
@@ -18,6 +19,7 @@ export function useCamera(profiles: Profile[]) {
   profilesRef.current=profiles
   const [status,setStatus]=useState<CameraStatus>('idle'),[error,setError]=useState(''),[detections,setDetections]=useState<Detection[]>([])
   const [metrics,setMetrics]=useState({fps:0,inferenceMs:0,handCount:0,runtime:'MediaPipe'})
+  const [diagnostics,setDiagnostics]=useState<CameraDiagnostics>({secureContext:window.isSecureContext,mediaDevices:!!navigator.mediaDevices?.getUserMedia,cameraCount:0,lastError:''})
   const stop=useCallback(()=>{
     generation.current++;cancelAnimationFrame(rafRef.current)
     streamRef.current?.getTracks().forEach(track=>track.stop());streamRef.current=null
@@ -34,12 +36,24 @@ export function useCamera(profiles: Profile[]) {
     try {
       if(!window.isSecureContext)throw new Error('Camera access requires HTTPS or localhost. Open GestureFlow using a secure address.')
       if(!navigator.mediaDevices?.getUserMedia)throw new Error('Camera access is unavailable in this browser. Open GestureFlow in a current Chrome, Edge, Firefox, or Safari browser.')
-      const stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:'user',width:{ideal:640},height:{ideal:480},frameRate:{ideal:60,max:60}}})
+      const availableBeforePermission=await navigator.mediaDevices.enumerateDevices().catch(()=>[])
+      setDiagnostics(current=>({...current,secureContext:window.isSecureContext,mediaDevices:true,cameraCount:availableBeforePermission.filter(device=>device.kind==='videoinput').length,lastError:''}))
+      let stream:MediaStream
+      try {
+        stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'user'},width:{ideal:640},height:{ideal:480},frameRate:{ideal:30,max:60}}})
+      } catch (firstError) {
+        // Some laptops reject facingMode or frame-rate constraints. Retry with the
+        // least restrictive camera request before surfacing an error.
+        if(!['OverconstrainedError','NotReadableError','AbortError'].includes(firstError instanceof Error?firstError.name:''))throw firstError
+        stream=await navigator.mediaDevices.getUserMedia({audio:false,video:true})
+      }
       if(run!==generation.current){stream.getTracks().forEach(t=>t.stop());return}
       streamRef.current=stream
+      const availableAfterPermission=await navigator.mediaDevices.enumerateDevices().catch(()=>[])
+      setDiagnostics(current=>({...current,cameraCount:availableAfterPermission.filter(device=>device.kind==='videoinput').length}))
       const video=videoRef.current
       if(!video)throw new Error('The video preview is unavailable. Please reload the page.')
-      video.srcObject=stream;await video.play()
+      video.srcObject=stream;video.muted=true;video.playsInline=true;await video.play()
       if(run!==generation.current)return
       setStatus('loading')
       const handPose=await import('@tensorflow-models/hand-pose-detection')
@@ -65,9 +79,10 @@ export function useCamera(profiles: Profile[]) {
       // On the supplied camera frame this reduced warm inference from ~340 ms
       // to 21–31 ms while preserving the Open Hand landmarks.
       const input=document.createElement('canvas')
-      const scale=Math.min(320/video.videoWidth,320/video.videoHeight)
-      input.width=Math.max(160,Math.round(video.videoWidth*scale))
-      input.height=Math.max(160,Math.round(video.videoHeight*scale))
+      const sourceWidth=video.videoWidth||640,sourceHeight=video.videoHeight||480
+      const scale=Math.min(320/sourceWidth,320/sourceHeight)
+      input.width=Math.max(160,Math.round(sourceWidth*scale))
+      input.height=Math.max(160,Math.round(sourceHeight*scale))
       const inputContext=input.getContext('2d',{alpha:false})
       if(!inputContext)throw new Error('Canvas processing is unavailable in this browser.')
       inputContext.drawImage(video,0,0,input.width,input.height)
@@ -111,9 +126,11 @@ export function useCamera(profiles: Profile[]) {
       rafRef.current=requestAnimationFrame(()=>void tick())
     }catch(e){
       if(run!==generation.current){pendingDetector?.dispose();return}
-      stop();setStatus('error');setError(cameraError(e))
+      const message=cameraError(e)
+      setDiagnostics(current=>({...current,lastError:message,cameraCount:current.cameraCount}))
+      stop();setStatus('error');setError(message)
     }
   },[stop])
   useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;stop()}},[stop])
-  return {videoRef,frameRef,descriptorRef,status,error,detections,metrics,start,stop}
+  return {videoRef,frameRef,descriptorRef,status,error,detections,metrics,diagnostics,start,stop}
 }
