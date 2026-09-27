@@ -54,6 +54,9 @@ export function useCamera(profiles: Profile[]) {
       const video=videoRef.current
       if(!video)throw new Error('The video preview is unavailable. Please reload the page.')
       video.srcObject=stream;video.muted=true;video.playsInline=true;await video.play()
+      const videoReadyUntil=Date.now()+2500
+      while((video.videoWidth<2||video.videoHeight<2)&&Date.now()<videoReadyUntil)await new Promise(resolve=>window.setTimeout(resolve,50))
+      if(video.videoWidth<2||video.videoHeight<2)throw new Error('The camera opened but did not provide a video frame. Check browser camera permissions and close other apps using the camera.')
       if(run!==generation.current)return
       setStatus('loading')
       const handPose=await import('@tensorflow-models/hand-pose-detection')
